@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MedCheck: medication safety checker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap">
+<style>
+:root{--bg:#F3F7F6;--surface:#fff;--ink:#12302F;--muted:#56706E;--line:#D3E0DD;--accent:#0B6E6E;--on-accent:#fff;
+--major:#B3202E;--major-bg:#FBE9EA;--mod:#8A5200;--mod-bg:#FFF1D9;--minor:#2C5D8F;--minor-bg:#E5EFF9;--ok:#1E7A50;--ok-bg:#E4F4EB;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0E1B1B;--surface:#152727;--ink:#E4F0EE;--muted:#93AFAC;--line:#274442;--accent:#4FC3C3;--on-accent:#062222;--major:#FF8A93;--major-bg:#3A1B1F;--mod:#F2B45A;--mod-bg:#382A12;--minor:#8DBCF0;--minor-bg:#16283A;--ok:#6FD09B;--ok-bg:#14301F}}
+:root[data-theme="dark"]{--bg:#0E1B1B;--surface:#152727;--ink:#E4F0EE;--muted:#93AFAC;--line:#274442;--accent:#4FC3C3;--on-accent:#062222;--major:#FF8A93;--major-bg:#3A1B1F;--mod:#F2B45A;--mod-bg:#382A12;--minor:#8DBCF0;--minor-bg:#16283A;--ok:#6FD09B;--ok-bg:#14301F}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 "Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1040px;margin:0 auto;padding:28px 18px 40px}
+h1{font-size:2rem;line-height:1.15;margin:0 0 6px;letter-spacing:-.02em}
+h2{font-size:1.05rem;margin:0 0 12px}
+.lead{color:var(--muted);max-width:62ch;margin:0 0 24px}
+.grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:20px;align-items:start}
+@media (max-width:820px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px}
+.panel+.panel{margin-top:0}
+.group{margin-bottom:22px}
+label,.lbl{display:block;font-size:.875rem;font-weight:600;margin-bottom:6px}
+input,select{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:9px 10px;min-height:42px}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.row{display:grid;grid-template-columns:1fr 92px 82px;gap:8px;align-items:end}
+@media (max-width:460px){.row{grid-template-columns:1fr 1fr}.row>div:first-child{grid-column:1/-1}}
+.allergies{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:.875rem;cursor:pointer;background:var(--bg)}
+.chip input{width:auto;min-height:0;margin:0}
+.chip:has(input:checked){border-color:var(--major);background:var(--major-bg);color:var(--major)}
+button{font:inherit;font-weight:600;border-radius:6px;padding:9px 16px;min-height:42px;cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:var(--on-accent)}
+button.ghost{background:transparent;color:var(--accent)}
+button.x{min-height:32px;padding:2px 10px;background:transparent;color:var(--muted);border-color:var(--line)}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.meds{list-style:none;margin:14px 0 0;padding:0}
+.meds li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.meds small{display:block;color:var(--muted)}
+.verdict{border-left:6px solid var(--ok);background:var(--ok-bg);padding:14px 16px;border-radius:0 8px 8px 0;margin-bottom:16px}
+.verdict.major{border-color:var(--major);background:var(--major-bg)}
+.verdict.mod{border-color:var(--mod);background:var(--mod-bg)}
+.verdict strong{display:block;font-size:1.3rem;line-height:1.25}
+.verdict span{color:var(--muted);font-size:.9rem}
+.find{border:1px solid var(--line);border-left-width:5px;border-radius:8px;padding:12px 14px;margin-bottom:10px}
+.find.s3{border-left-color:var(--major)}.find.s2{border-left-color:var(--mod)}.find.s1{border-left-color:var(--minor)}
+.find h3{margin:0 0 4px;font-size:1rem}
+.tag{display:inline-block;font-size:.75rem;font-weight:700;border-radius:4px;padding:1px 8px;margin-right:8px;vertical-align:1px}
+.s3 .tag{background:var(--major-bg);color:var(--major)}.s2 .tag{background:var(--mod-bg);color:var(--mod)}.s1 .tag{background:var(--minor-bg);color:var(--minor)}
+.find p{margin:2px 0;font-size:.925rem}
+.find .act{font-weight:600}
+.empty{color:var(--muted)}
+.device{margin-top:16px;font-size:.85rem;color:var(--muted);border-top:1px solid var(--line);padding-top:12px}
+footer{margin-top:22px;font-size:.8rem;color:var(--muted);max-width:75ch}
+</style>
+</head>
+<body>
+<main>
+<h1>MedCheck</h1>
+<p class="lead">Enter a patient's details and prescription to check for dangerous drug interactions, allergy conflicts, duplicate medicines and unsafe daily doses.</p>
+<div class="grid">
+<section class="panel" aria-label="Prescription">
+<div class="group">
+<h2>Patient</h2>
+<label for="age">Age (years)</label>
+<input id="age" type="number" min="0" max="120" value="45" inputmode="numeric" style="max-width:140px">
+</div>
+<div class="group">
+<span class="lbl" id="allergyLbl">Known allergies</span>
+<div class="allergies" role="group" aria-labelledby="allergyLbl">
+<label class="chip"><input type="checkbox" value="penicillin"> Penicillin</label>
+<label class="chip"><input type="checkbox" value="nsaid"> NSAIDs / aspirin</label>
+<label class="chip"><input type="checkbox" value="macrolide"> Macrolides</label>
+<label class="chip"><input type="checkbox" value="quinolone"> Fluoroquinolones</label>
+</div>
+</div>
+<div class="group" style="margin-bottom:0">
+<h2>Medicines</h2>
+<div class="row">
+<div><label for="drug">Medicine</label><select id="drug"></select></div>
+<div><label for="dose">Dose (mg)</label><input id="dose" type="number" min="0" step="any" value="500" inputmode="decimal"></div>
+<div><label for="freq">Times/day</label><input id="freq" type="number" min="1" max="12" value="1" inputmode="numeric"></div>
+</div>
+<div class="actions">
+<button id="add" type="button">Add medicine</button>
+<button id="sample" type="button" class="ghost">Load sample case</button>
+<button id="clear" type="button" class="ghost">Clear all</button>
+</div>
+<ul class="meds" id="meds"></ul>
+</div>
+</section>
+<section class="panel" aria-label="Safety report" aria-live="polite">
+<h2>Safety report</h2>
+<div id="out"></div>
+<p class="device">All checks run on this device. No patient data is sent to any server, so the tool works offline and keeps records private.</p>
+</section>
+</div>
+<footer>Educational prototype for a hackathon. It covers a small set of common medicines and adult dose limits, and is not a substitute for a pharmacist or doctor.</footer>
+</main>
+<script>
+const D={
+warfarin:{c:'Anticoagulant',m:10},aspirin:{c:'NSAID',m:4000,al:'nsaid'},ibuprofen:{c:'NSAID',m:2400,al:'nsaid'},diclofenac:{c:'NSAID',m:150,al:'nsaid'},
+paracetamol:{c:'Analgesic',m:4000},amoxicillin:{c:'Penicillin',m:3000,al:'penicillin'},clarithromycin:{c:'Macrolide',m:1000,al:'macrolide'},
+azithromycin:{c:'Macrolide',m:500,al:'macrolide'},ciprofloxacin:{c:'Fluoroquinolone',m:1500,al:'quinolone'},metformin:{c:'Biguanide',m:3000},
+atorvastatin:{c:'Statin',m:80},simvastatin:{c:'Statin',m:80},amlodipine:{c:'Calcium channel blocker',m:10},lisinopril:{c:'ACE inhibitor',m:80},
+losartan:{c:'ARB',m:100},spironolactone:{c:'Potassium-sparing diuretic',m:200},furosemide:{c:'Loop diuretic',m:600},'potassium chloride':{c:'Potassium supplement'},
+digoxin:{c:'Cardiac glycoside',m:0.5},sildenafil:{c:'PDE5 inhibitor',m:100},nitroglycerin:{c:'Nitrate'},fluoxetine:{c:'SSRI',m:80},
+sertraline:{c:'SSRI',m:200},tramadol:{c:'Opioid',m:400},omeprazole:{c:'Proton pump inhibitor',m:80},clopidogrel:{c:'Antiplatelet',m:75}};
+const K1='Both raise potassium, risking dangerous hyperkalaemia.',K2='Monitor potassium and kidney function.';
+const IX=[
+['warfarin','aspirin',3,'Both increase bleeding risk.','Avoid unless specifically prescribed; watch for bleeding.'],
+['warfarin','ibuprofen',3,'NSAIDs raise bleeding risk and disturb warfarin control.','Use paracetamol instead and consult the prescriber.'],
+['warfarin','diclofenac',3,'NSAIDs raise bleeding risk and disturb warfarin control.','Use paracetamol instead and consult the prescriber.'],
+['warfarin','clarithromycin',3,'Clarithromycin can raise INR sharply, increasing bleeding risk.','Choose another antibiotic or check INR within days.'],
+['warfarin','ciprofloxacin',2,'May strengthen the effect of warfarin.','Monitor INR.'],
+['warfarin','fluoxetine',2,'Raises bleeding risk and may raise INR.','Monitor INR and bleeding.'],
+['clopidogrel','omeprazole',2,'Omeprazole can reduce how well clopidogrel works.','Consider pantoprazole instead.'],
+['clopidogrel','aspirin',2,'Two antiplatelet effects together raise bleeding risk.','Confirm this dual therapy is intended.'],
+['simvastatin','clarithromycin',3,'Simvastatin levels rise sharply, risking muscle breakdown (rhabdomyolysis).','Pause the statin during the antibiotic course or change antibiotic.'],
+['atorvastatin','clarithromycin',2,'Statin levels rise, increasing muscle damage risk.','Consider a lower statin dose or another antibiotic.'],
+['simvastatin','amlodipine',2,'Amlodipine raises simvastatin levels.','Keep simvastatin at 20 mg/day or less.'],
+['lisinopril','spironolactone',3,K1,K2],['lisinopril','potassium chloride',3,K1,K2],
+['losartan','spironolactone',3,K1,K2],['losartan','potassium chloride',3,K1,K2],
+['lisinopril','losartan',3,'Blocking the same pathway twice risks low blood pressure, high potassium and kidney injury.','Avoid combining an ACE inhibitor with an ARB.'],
+['lisinopril','ibuprofen',2,'NSAIDs weaken blood pressure control and strain the kidneys.','Prefer paracetamol; monitor kidney function.'],
+['losartan','ibuprofen',2,'NSAIDs weaken blood pressure control and strain the kidneys.','Prefer paracetamol; monitor kidney function.'],
+['sildenafil','nitroglycerin',3,'Causes a severe, potentially life-threatening drop in blood pressure.','Never combine these two medicines.'],
+['tramadol','fluoxetine',3,'Risk of serotonin syndrome and seizures.','Avoid; choose another pain medicine.'],
+['tramadol','sertraline',3,'Risk of serotonin syndrome and seizures.','Avoid; choose another pain medicine.'],
+['digoxin','clarithromycin',3,'Raises digoxin levels, risking toxicity.','Check digoxin level or change antibiotic.'],
+['digoxin','furosemide',2,'Low potassium from furosemide increases digoxin toxicity.','Monitor potassium.'],
+['metformin','ciprofloxacin',2,'Can cause swings in blood sugar.','Monitor glucose.']];
+const NS=['aspirin','ibuprofen','diclofenac'];
+const AGE=[
+[['aspirin'],a=>a<16,3,'Aspirin in children and teenagers is linked to Reye syndrome.','Do not give; use paracetamol.'],
+[['tramadol'],a=>a<12,3,'Tramadol is not recommended under 12.','Choose another pain medicine.'],
+[NS,a=>a>=65,2,'In older adults NSAIDs raise the risk of stomach bleeding and kidney injury.','Use the lowest dose for the shortest time, or use paracetamol.'],
+[['ciprofloxacin'],a=>a<18,2,'Fluoroquinolones are restricted in children and teenagers.','Confirm there is no alternative.']];
+const AL={penicillin:'penicillin',nsaid:'NSAID / aspirin',macrolide:'macrolide',quinolone:'fluoroquinolone'};
+const DUP=['NSAID','SSRI','Statin','Macrolide'];
+let meds=[];
+const $=id=>document.getElementById(id);
+const cap=s=>s[0].toUpperCase()+s.slice(1);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+$('drug').innerHTML=Object.keys(D).sort().map(n=>`<option value="${n}">${cap(n)}</option>`).join('');
+
+function analyze(){
+const age=parseFloat($('age').value)||0,al=[...document.querySelectorAll('.allergies input:checked')].map(i=>i.value);
+const names=[...new Set(meds.map(m=>m.n))],F=[];
+meds.forEach(m=>{const d=D[m.n];
+if(d.al&&al.includes(d.al))F.push({s:3,t:`${cap(m.n)} conflicts with a ${AL[d.al]} allergy`,w:`${cap(m.n)} is in the same family as the recorded allergy.`,a:'Do not give. Ask the prescriber for a safe alternative.'});
+const tot=m.d*m.f;
+if(d.m&&age>=18&&tot>d.m)F.push({s:tot>d.m*1.5?3:2,t:`${cap(m.n)} daily dose is too high`,w:`Total is ${+tot.toFixed(2)} mg/day; the usual adult maximum is ${d.m} mg/day.`,a:'Reduce the dose or frequency.'});
+});
+if(age<18&&meds.length)F.push({s:1,t:'Child or teenager: check doses by weight',w:'Dose limits here are for adults only.',a:'Verify weight-based dosing before dispensing.'});
+IX.forEach(([a,b,s,w,x])=>{if(names.includes(a)&&names.includes(b))F.push({s,t:`${cap(a)} + ${b}`,w,a:x})});
+DUP.forEach(c=>{const g=names.filter(n=>D[n].c===c);if(g.length>1)F.push({s:2,t:`Duplicate therapy: ${g.map(cap).join(' + ')}`,w:`These are all ${c} medicines, so effects and side effects add up.`,a:'Keep one unless the prescriber intends both.'})});
+names.forEach(n=>{if(meds.filter(m=>m.n===n).length>1)F.push({s:2,t:`${cap(n)} is listed more than once`,w:'The same medicine appears in several lines, which risks a double dose.',a:'Merge into a single entry.'})});
+AGE.forEach(([l,test,s,w,x])=>l.forEach(n=>{if(names.includes(n)&&test(age))F.push({s,t:`${cap(n)}: age warning`,w,a:x})}));
+F.sort((x,y)=>y.s-x.s);return F}
+
+function render(){
+$('meds').innerHTML=meds.map((m,i)=>`<li><div><strong>${cap(esc(m.n))}</strong><small>${m.d} mg, ${m.f} time${m.f>1?'s':''} a day · ${esc(D[m.n].c)}</small></div><button class="x" type="button" data-i="${i}" aria-label="Remove ${esc(m.n)}">Remove</button></li>`).join('');
+const o=$('out');
+if(!meds.length){o.innerHTML='<p class="empty">Add at least one medicine, or load the sample case, to see the safety report.</p>';return}
+const F=analyze(),j=F.filter(f=>f.s==3).length,md=F.filter(f=>f.s==2).length;
+let h;
+if(!F.length)h=`<div class="verdict"><strong>No problems found</strong><span>${meds.length} medicine${meds.length>1?'s':''} checked against age, allergies, doses and interactions.</span></div>`;
+else h=`<div class="verdict ${j?'major':'mod'}"><strong>${j?`${j} serious problem${j>1?'s':''}`:'No serious problems'}${md?`, ${md} to review`:''}</strong><span>Review each item below before dispensing.</span></div>`;
+h+=F.map(f=>`<article class="find s${f.s}"><h3><span class="tag">${['','Note','Review','Serious'][f.s]}</span>${esc(f.t)}</h3><p>${esc(f.w)}</p><p class="act">${esc(f.a)}</p></article>`).join('');
+o.innerHTML=h}
+
+$('add').onclick=()=>{const d=parseFloat($('dose').value),f=parseInt($('freq').value);
+if(!(d>0)||!(f>0)){$('dose').focus();return}
+meds.push({n:$('drug').value,d,f});render()};
+$('meds').onclick=e=>{const b=e.target.closest('button[data-i]');if(b){meds.splice(+b.dataset.i,1);render()}};
+$('clear').onclick=()=>{meds=[];render()};
+$('age').oninput=render;
+document.querySelectorAll('.allergies input').forEach(i=>i.onchange=render);
+$('sample').onclick=()=>{$('age').value=68;document.querySelectorAll('.allergies input').forEach(i=>i.checked=i.value==='penicillin');
+meds=[['warfarin',5,1],['ibuprofen',400,3],['clarithromycin',500,2],['simvastatin',40,1],['lisinopril',10,1],['spironolactone',25,1],['amoxicillin',500,3]].map(([n,d,f])=>({n,d,f}));render()};
+render();
+</script>
+</body>
+</html>
